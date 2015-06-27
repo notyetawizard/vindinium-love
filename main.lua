@@ -1,38 +1,39 @@
 local http = require "socket.http"
 local json = require "lib/dkjson"
+-- Temp bot loading. Will need to clean this up.
+local nbot = require "bots/notyetawizard"
 
 -----
 
-function love.load(arg)
-    assert(type(settings) == "table", "Settings table is invalid.")
+function love.load()
+    assert(type(nbot) == "table", "Settings table is invalid.")
     local game = {
       key   = assert(settings.key, "A key must be provided"),
       mode  = settings.mode or "training",
-      loop  = settings.loop or vindinium.random_move,
+      loop  = settings.loop or random_move,
       pre_loop = settings.pre_loop,
       set_value = settings.set_value,
       values = settings.values
     }
 
-    assert(game_modes[game.mode], "Invalid game mode: " .. game.mode)
+    assert(valid_modes[game.mode], "Invalid game mode: " .. game.mode)
 
     -- Initial connection request
     local response = request(game, {key = game.key})
-    vindinium.parse_response(game, response)
+    parse_first_response(game, response)
 
     -- Run pre_loop function if availiable
     if game.pre_loop then game.pre_loop(game) end
-
-    -- Run loop function until the game is finished
-    while game.finished == false do
-        local move = game.loop(game)
-        response = request(game, {key = game.key, dir = move})
-        vindinium.parse_response(game, response)
-    end
 end
 
-function love.update(dt)
-
+function love.update()
+    if not game.finished then
+        local move = game.loop(game)
+        response = request(game, {key = game.key, dir = move})
+        parse_response(game, response)
+    else
+        love.event.quit()
+    end
 end
 
 function love.draw()
@@ -78,7 +79,7 @@ local function request(game, body_pairs)
 
     --Send the request
     local _, code, headers = http.request{
-        url = game.playUrl or game_modes[game.mode],
+        url = game.playUrl or valid_modes[game.mode],
         method = "POST",
         sink = ltn12.sink.table(response_body),
         source = ltn12.source.string(request_body),
