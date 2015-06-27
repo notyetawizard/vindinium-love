@@ -3,34 +3,33 @@ local json = require "lib/dkjson"
 -- Temp bot loading. Will need to clean this up.
 local nbot = require "bots/notyetawizard"
 
+local game = {}
+map = {taverns = {}, mines = {}, heros = {}, hero = {}}
+
 -----
 
 function love.load()
     assert(type(nbot) == "table", "Settings table is invalid.")
-    local game = {
-      key   = assert(settings.key, "A key must be provided"),
-      mode  = settings.mode or "training",
-      loop  = settings.loop or random_move,
-      pre_loop = settings.pre_loop,
-      set_value = settings.set_value,
-      values = settings.values
-    }
+    game.key   = assert(nbot.key, "A key must be provided")
+    game.mode  = nbot.mode or "training"
+    game.loop  = nbot.loop or random_move
+    game.pre_loop = nbot.pre_loop
 
     assert(valid_modes[game.mode], "Invalid game mode: " .. game.mode)
 
     -- Initial connection request
-    local response = request(game, {key = game.key})
-    parse_first_response(game, response)
+    local response = request{key = game.key}
+    parse_first_response(response)
 
     -- Run pre_loop function if availiable
-    if game.pre_loop then game.pre_loop(game) end
+    if game.pre_loop then game.pre_loop() end
 end
 
 function love.update()
     if not game.finished then
-        local move = game.loop(game)
-        response = request(game, {key = game.key, dir = move})
-        parse_response(game, response)
+        local move = game.loop()
+        response = request({key = game.key, dir = move})
+        parse_response(response)
     else
         love.event.quit()
     end
@@ -73,7 +72,7 @@ end
 -- @param game:         a game object including a url or mode
 -- @param body_pairs:   a table of key-value pairs
 -- @return:             the response as a json string
-local function request(game, body_pairs)
+local function request(body_pairs)
     local response_body = {}
     local request_body = mk_request_body(body_pairs)
 
@@ -104,14 +103,52 @@ local function correct_pos(pos)
     pos.x, pos.y = pos.y + 1, pos.x + 1
 end
 
-function parse_first_response(game, response)
-    -- Parse response json
-    local parsed = json.decode(response)
+local function remove_heros()
+
 end
 
-function parse_response(game, response)
+local function update_map(board, tile)
+
+end
+
+function parse_first_response(response)
     -- Parse response json
     local parsed = json.decode(response)
+    game.id = parsed.game.id
+    game.turn = parsed.game.turn
+    game.maxTurns = parsed.game.maxTurns
+    game.finished = parsed.game.finished
+    game.token = parsed.game.token
+    game.viewUrl = parsed.game.viewUrl
+    game.playUrl = parsed.game.playUrl
+
+    map.size = parsed.game.board.size
+    map.hero = parsed.hero
+
+    local board = parsed.game.board.tiles
+    update_map(board, valid_tiles.ground)
+    update_map(board, valid_tiles.wall)
+    update_map(board, valid_tiles.hero)
+    update_map(board, valid_tiles.mine)
+    update_map(board, valid_tiles.tavern)
+
+end
+
+function parse_response(response)
+    -- Parse response json
+    local parsed = json.decode(response)
+    game.turn = parsed.game.turn
+    game.finished = parsed.game.finished
+
+    map.hero = parsed.hero
+    map.mines = {}
+
+    local board = parsed.game.board.tiles
+
+    -- set heroes back to ground on the map
+
+    update_map(board, valid_tiles.hero)
+    update_map(board, valid_tiles.mine)
 end
 
 function random_move()
