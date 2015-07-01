@@ -1,7 +1,7 @@
 local http = require "socket.http"
 local json = require "lib/dkjson"
 -- Temp bot loading. Will need to clean this up.
-local nbot = require "bots/notyetawizard"
+local nbot = require "bots/example"
 
 -- Initiate some global variables that bots will
 -- need access to.
